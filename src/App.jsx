@@ -6,6 +6,8 @@ import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import DashboardPage from './pages/DashboardPage'
+import ProfilePage from './pages/ProfilePage'
+import ContactPage from './pages/ContactPage'
 import EventsPage from './pages/EventsPage'
 import SkillsPage from './pages/SkillsPage'
 import ContactsPage from './pages/ContactsPage'
@@ -25,7 +27,9 @@ export default function App() {
           <Route path="/events" element={<EventsPage />} />
           <Route path="/skills" element={<SkillsPage />} />
           <Route path="/premium" element={<PremiumPage />} />
+          <Route path="/contact" element={<ContactPage />} />
           <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/contacts" element={<ProtectedRoute><ContactsPage /></ProtectedRoute>} />
           <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
           <Route path="/my-skills" element={<ProtectedRoute><MySkillPage /></ProtectedRoute>} />

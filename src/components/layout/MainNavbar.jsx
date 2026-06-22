@@ -20,6 +20,7 @@ export default function MainNavbar() {
           <Nav className="me-auto">
             <Nav.Link as={Link} to="/events">Événements</Nav.Link>
             <Nav.Link as={Link} to="/skills">Compétences</Nav.Link>
+            <Nav.Link as={Link} to="/contact">Contact</Nav.Link>
             {user && (
               <>
                 <Nav.Link as={Link} to="/contacts">Contacts</Nav.Link>
