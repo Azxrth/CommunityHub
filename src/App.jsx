@@ -1,0 +1,37 @@
+﻿import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import AppLayout from './components/layout/AppLayout'
+import ProtectedRoute from './routes/ProtectedRoute'
+import AdminRoute from './routes/AdminRoute'
+import HomePage from './pages/HomePage'
+import LoginPage from './pages/LoginPage'
+import RegisterPage from './pages/RegisterPage'
+import DashboardPage from './pages/DashboardPage'
+import EventsPage from './pages/EventsPage'
+import SkillsPage from './pages/SkillsPage'
+import ContactsPage from './pages/ContactsPage'
+import MessagesPage from './pages/MessagesPage'
+import MySkillPage from './pages/MySkillPage'
+import PremiumPage from './pages/PremiumPage'
+import NotFoundPage from './pages/NotFoundPage'
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/events" element={<EventsPage />} />
+          <Route path="/skills" element={<SkillsPage />} />
+          <Route path="/premium" element={<PremiumPage />} />
+          <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+          <Route path="/contacts" element={<ProtectedRoute><ContactsPage /></ProtectedRoute>} />
+          <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+          <Route path="/my-skills" element={<ProtectedRoute><MySkillPage /></ProtectedRoute>} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  )
+}
