@@ -25,6 +25,9 @@ export default function MainNavbar() {
               <>
                 <Nav.Link as={Link} to="/contacts">Contacts</Nav.Link>
                 <Nav.Link as={Link} to="/messages">Messages</Nav.Link>
+                {user.is_premium && (
+                  <Nav.Link as={Link} to="/events/create">Créer un événement</Nav.Link>
+                )}
               </>
             )}
           </Nav>
