@@ -3,10 +3,16 @@ import { apiFetch } from '../services/api'
 
 const useContactsStore = create((set) => ({
   contacts: [],
+  users: [],
 
   fetchContacts: async () => {
     const data = await apiFetch('/contacts/index.php')
     set({ contacts: data })
+  },
+
+  fetchUsers: async () => {
+    const data = await apiFetch('/users/index.php')
+    set({ users: data })
   },
 
   sendRequest: async (receiverId) => {
