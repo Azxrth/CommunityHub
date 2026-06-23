@@ -7,7 +7,7 @@ import EventCard from '../components/events/EventCard'
 export default function EventsPage() {
   const { events, loading, error, fetchEvents } = useEventsStore()
   const { categories, fetchCategories } = useCategoriesStore()
-  const [filters, setFilters] = useState({ q: '', category_id: '', type: '', price_type: '' })
+  const [filters, setFilters] = useState({ q: '', category_id: '', type: '', price_type: '', date_filter: '' })
 
   useEffect(() => { fetchCategories() }, [])
 
@@ -17,7 +17,7 @@ export default function EventsPage() {
   }, [filters])
 
   const update = (key, val) => setFilters((f) => ({ ...f, [key]: val }))
-  const reset = () => setFilters({ q: '', category_id: '', type: '', price_type: '' })
+  const reset = () => setFilters({ q: '', category_id: '', type: '', price_type: '', date_filter: '' })
   const hasFilters = Object.values(filters).some((v) => v !== '')
 
   return (
@@ -54,6 +54,13 @@ export default function EventsPage() {
             <option value="">Tous prix</option>
             <option value="gratuit">Gratuit</option>
             <option value="payant">Payant</option>
+          </Form.Select>
+        </Col>
+        <Col md={2}>
+          <Form.Select value={filters.date_filter} onChange={(e) => update('date_filter', e.target.value)}>
+            <option value="">Tous les événements</option>
+            <option value="upcoming">À venir</option>
+            <option value="past">Passés</option>
           </Form.Select>
         </Col>
         {hasFilters && (

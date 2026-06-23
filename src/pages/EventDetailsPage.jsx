@@ -1,14 +1,53 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Card, Badge, Button, Spinner, Alert, Form, ListGroup, Row, Col } from 'react-bootstrap'
+import { Card, Badge, Button, Spinner, Alert, Form, ListGroup, Row, Col, Modal } from 'react-bootstrap'
 import { useForm } from 'react-hook-form'
 import useEventsStore from '../stores/eventsStore'
 import useAuthStore from '../stores/authStore'
 
+function StripeModal({ amount, onConfirm, onCancel, loading }) {
+  const { register, handleSubmit } = useForm()
+  return (
+    <Modal show onHide={onCancel} centered>
+      <Modal.Header closeButton>
+        <Modal.Title>Paiement sécurisé</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <p className="text-muted small mb-3">
+          Montant à régler : <strong>{amount} €</strong> (dont 10 % de commission plateforme)
+        </p>
+        <Form onSubmit={handleSubmit(onConfirm)}>
+          <Form.Group className="mb-3">
+            <Form.Label>Numéro de carte</Form.Label>
+            <Form.Control placeholder="4242 4242 4242 4242" {...register('card_number')} />
+          </Form.Group>
+          <Row>
+            <Col>
+              <Form.Group className="mb-3">
+                <Form.Label>Date d'expiration</Form.Label>
+                <Form.Control placeholder="MM/AA" {...register('expiry')} />
+              </Form.Group>
+            </Col>
+            <Col>
+              <Form.Group className="mb-3">
+                <Form.Label>CVV</Form.Label>
+                <Form.Control placeholder="123" {...register('cvv')} />
+              </Form.Group>
+            </Col>
+          </Row>
+          <Button type="submit" className="w-100" disabled={loading}>
+            {loading ? 'Traitement...' : `Payer ${amount} €`}
+          </Button>
+        </Form>
+      </Modal.Body>
+    </Modal>
+  )
+}
+
 export default function EventDetailsPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { currentEvent, fetchEvent, registerToEvent, addMessage } = useEventsStore()
+  const { currentEvent, fetchEvent, registerToEvent, addMessage, moderateMessage } = useEventsStore()
   const user = useAuthStore((s) => s.user)
 
   const [loading, setLoading] = useState(true)
@@ -18,11 +57,10 @@ export default function EventDetailsPage() {
   const [registerError, setRegisterError] = useState(null)
   const [msgError, setMsgError] = useState(null)
   const [msgSuccess, setMsgSuccess] = useState(false)
+  const [showStripe, setShowStripe] = useState(false)
+  const [moderatingId, setModeratingId] = useState(null)
 
   const { register: regMsg, handleSubmit: handleMsgSubmit, reset: resetMsg } = useForm()
-  const { register: regReg, handleSubmit: handleRegSubmit } = useForm({
-    defaultValues: { payment_method: 'stripe' }
-  })
 
   useEffect(() => {
     fetchEvent(id)
@@ -30,18 +68,30 @@ export default function EventDetailsPage() {
       .finally(() => setLoading(false))
   }, [id])
 
-  const onRegister = async (data) => {
+  const handleRegisterClick = () => {
+    if (ev.price_type === 'payant') {
+      setShowStripe(true)
+    } else {
+      doRegister()
+    }
+  }
+
+  const doRegister = async (paymentMethod = 'gratuit') => {
     setRegisterLoading(true)
     setRegisterError(null)
     try {
-      await registerToEvent({ event_id: Number(id), payment_method: data.payment_method })
+      await registerToEvent({ event_id: Number(id), payment_method: paymentMethod })
       setRegisterSuccess(true)
+      setShowStripe(false)
+      fetchEvent(id)
     } catch (err) {
       setRegisterError(err.message || "Erreur lors de l'inscription")
     } finally {
       setRegisterLoading(false)
     }
   }
+
+  const onStripeConfirm = () => doRegister('stripe')
 
   const onMessage = async (data) => {
     setMsgError(null)
@@ -56,19 +106,42 @@ export default function EventDetailsPage() {
     }
   }
 
+  const onModerate = async (messageId) => {
+    setModeratingId(messageId)
+    try {
+      await moderateMessage(messageId)
+      fetchEvent(id)
+    } catch (_) {}
+    setModeratingId(null)
+  }
+
   if (loading) return <div className="text-center py-5"><Spinner /></div>
   if (error) return <Alert variant="danger">{error}</Alert>
   if (!currentEvent) return null
 
   const ev = currentEvent
+  const isOrganizer = user && (user.id === ev.organizer_id || user.id === ev.user_id)
+  const isFull = ev.max_participants && Number(ev.participant_count || ev.registrations_count || 0) >= Number(ev.max_participants)
 
   return (
     <div>
+      {showStripe && (
+        <StripeModal
+          amount={ev.price}
+          onConfirm={onStripeConfirm}
+          onCancel={() => setShowStripe(false)}
+          loading={registerLoading}
+        />
+      )}
+
       <Button variant="outline-secondary" size="sm" className="mb-3" onClick={() => navigate('/events')}>
         ← Retour aux événements
       </Button>
 
       <Card className="shadow-sm mb-4">
+        {ev.image && (
+          <Card.Img variant="top" src={ev.image} style={{ maxHeight: 300, objectFit: 'cover' }} />
+        )}
         <Card.Body>
           <div className="d-flex justify-content-between align-items-start mb-3">
             <h2 className="mb-0">{ev.name}</h2>
@@ -92,7 +165,10 @@ export default function EventDetailsPage() {
             <Col md={4}><strong>Début :</strong> {new Date(ev.start_date).toLocaleString('fr-FR')}</Col>
             <Col md={4}><strong>Fin :</strong> {new Date(ev.end_date).toLocaleString('fr-FR')}</Col>
             {ev.max_participants && (
-              <Col md={4}><strong>Places :</strong> {ev.max_participants}</Col>
+              <Col md={4}>
+                <strong>Places :</strong>{' '}
+                {ev.participant_count || ev.registrations_count || 0} / {ev.max_participants}
+              </Col>
             )}
           </Row>
         </Card.Body>
@@ -101,24 +177,26 @@ export default function EventDetailsPage() {
       {user?.is_premium && !registerSuccess && (
         <Card className="shadow-sm mb-4">
           <Card.Body>
-            <h5>S'inscrire à cet événement</h5>
+            <h5>Inscription</h5>
             {registerError && <Alert variant="danger">{registerError}</Alert>}
-            <Form onSubmit={handleRegSubmit(onRegister)} className="d-flex gap-3 align-items-end">
-              <Form.Group>
-                <Form.Label>Moyen de paiement</Form.Label>
-                <Form.Select {...regReg('payment_method')} style={{ width: '200px' }}>
-                  <option value="stripe">Stripe</option>
-                  <option value="cheque">Chèque</option>
-                </Form.Select>
-              </Form.Group>
-              <Button type="submit" disabled={registerLoading}>
-                {registerLoading ? 'Inscription...' : "S'inscrire"}
+            {isFull ? (
+              <Alert variant="warning" className="mb-0">
+                Cet événement est complet. Les inscriptions sont fermées.
+              </Alert>
+            ) : (
+              <Button onClick={handleRegisterClick} disabled={registerLoading}>
+                {registerLoading ? 'Inscription...' : (ev.price_type === 'payant' ? `S'inscrire — ${ev.price} €` : "S'inscrire gratuitement")}
               </Button>
-            </Form>
+            )}
           </Card.Body>
         </Card>
       )}
-      {registerSuccess && <Alert variant="success">Inscription confirmée ! Un email de confirmation vous a été envoyé.</Alert>}
+      {!user?.is_premium && user && (
+        <Alert variant="info" className="mb-4">
+          Vous devez être <strong>Premium</strong> pour vous inscrire à un événement.
+        </Alert>
+      )}
+      {registerSuccess && <Alert variant="success">Inscription confirmée !</Alert>}
 
       {user && (
         <Card className="shadow-sm mb-4">
@@ -139,17 +217,41 @@ export default function EventDetailsPage() {
 
       {ev.messages?.length > 0 && (
         <Card className="shadow-sm">
-          <Card.Header><strong>Messages ({ev.messages.length})</strong></Card.Header>
+          <Card.Header><strong>Messages ({ev.messages.filter(m => m.status !== 'pending_moderation').length})</strong></Card.Header>
           <ListGroup variant="flush">
-            {ev.messages.map((m, i) => (
-              <ListGroup.Item key={i}>
-                <strong>{m.pseudo || m.sender_pseudo}</strong>
-                <span className="text-muted small ms-2">
-                  {new Date(m.created_at).toLocaleString('fr-FR')}
-                </span>
-                <p className="mb-0 mt-1">{m.message}</p>
-              </ListGroup.Item>
-            ))}
+            {ev.messages.map((m, i) => {
+              if (m.status === 'pending_moderation') {
+                return (
+                  <ListGroup.Item key={i} className="text-muted fst-italic">
+                    <em>Ce message est en attente de modération.</em>
+                  </ListGroup.Item>
+                )
+              }
+              return (
+                <ListGroup.Item key={i}>
+                  <div className="d-flex justify-content-between align-items-start">
+                    <div>
+                      <strong>{m.pseudo || m.sender_pseudo}</strong>
+                      <span className="text-muted small ms-2">
+                        {new Date(m.created_at).toLocaleString('fr-FR')}
+                      </span>
+                      <p className="mb-0 mt-1">{m.message}</p>
+                    </div>
+                    {isOrganizer && (
+                      <Button
+                        variant="outline-warning"
+                        size="sm"
+                        disabled={moderatingId === m.id}
+                        onClick={() => onModerate(m.id)}
+                        title="Demander la suppression"
+                      >
+                        {moderatingId === m.id ? '...' : 'Modérer'}
+                      </Button>
+                    )}
+                  </div>
+                </ListGroup.Item>
+              )
+            })}
           </ListGroup>
         </Card>
       )}

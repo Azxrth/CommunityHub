@@ -137,7 +137,18 @@ export default function CreateEventPage() {
                 <Form.Label>Date de fin *</Form.Label>
                 <Form.Control
                   type="datetime-local"
-                  {...register('end_date', { required: 'Date de fin requise' })}
+                  {...register('end_date', {
+                    required: 'Date de fin requise',
+                    validate: (val) => {
+                      const start = watch('start_date')
+                      if (!start || !val) return true
+                      const startDay = start.slice(0, 10)
+                      const endDay = val.slice(0, 10)
+                      if (endDay === startDay) return 'La date de fin doit être un jour différent de la date de début'
+                      if (new Date(val) <= new Date(start)) return 'La date de fin doit être après la date de début'
+                      return true
+                    },
+                  })}
                   isInvalid={!!errors.end_date}
                 />
                 <Form.Control.Feedback type="invalid">{errors.end_date?.message}</Form.Control.Feedback>
